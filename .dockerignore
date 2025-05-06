@@ -1,0 +1,32 @@
+# Git files
+.git
+.gitignore
+
+# Docker files
+Dockerfile
+.dockerignore
+docker-compose*
+
+# Binary files
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Environment files (exclude for security, inject at runtime)
+.env
+
+# Build & test artifacts
+*.test
+*.out
+
+# Documentation
+*.md
+
+# Temporary files
+*~
+*.swp
+*.swo
+**/.DS_Store
