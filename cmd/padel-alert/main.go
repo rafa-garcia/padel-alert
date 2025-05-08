@@ -14,7 +14,7 @@ import (
 	"github.com/yourusername/padel-alert/internal/logger"
 )
 
-const version = "0.1.0"
+const version = "0.2.0"
 
 func main() {
 	// Load config
@@ -43,7 +43,6 @@ func main() {
 	// Start server in a goroutine so it doesn't block the graceful shutdown handling
 	go func() {
 		logger.Info("Server listening", "port", cfg.Port)
-		logger.Info("Health check available", "url", fmt.Sprintf("http://localhost:%s/api/v1/health", cfg.Port))
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("Server error", err)

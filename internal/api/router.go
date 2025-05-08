@@ -21,14 +21,17 @@ func NewRouter(version string, apiKeys []string) *chi.Mux {
 	r.Use(SecurityHeaders)                      // Add security headers
 	r.Use(middleware.Heartbeat("/ping"))        // Simple ping endpoint
 
-	// Health check handler
+	// Create handlers
 	healthHandler := &HealthHandler{
 		Version: version,
 	}
 
+	searchHandler := NewSearchHandler()
+
 	// Public routes
 	r.Group(func(r chi.Router) {
 		r.Get("/api/v1/health", healthHandler.HealthCheck)
+		r.Get("/api/v1/search", searchHandler.Search)
 	})
 
 	// Protected routes
