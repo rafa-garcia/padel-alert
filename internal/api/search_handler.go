@@ -7,7 +7,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"sort"
 
 	"github.com/yourusername/padel-alert/internal/domain/model"
 	"github.com/yourusername/padel-alert/internal/logger"
@@ -15,10 +18,15 @@ import (
 	"github.com/yourusername/padel-alert/pkg/playtomic"
 )
 
+func sortActivitiesByDate(activities []model.Activity) {
+	sort.Slice(activities, func(i, j int) bool {
+		return activities[i].StartDate.Before(activities[j].StartDate)
+	})
+}
+
 type ActivitySearchResponse struct {
 	Count      int              `json:"count"`
 	Activities []model.Activity `json:"activities"`
-	Duration   string           `json:"duration"`
 }
 
 type SearchHandler struct {
@@ -32,7 +40,6 @@ func NewSearchHandler() *SearchHandler {
 }
 
 func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
 	query := r.URL.Query()
 	clubIDs := parseClubIDs(query.Get("club_id"))
 
@@ -122,6 +129,39 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		includeUnavailable = true
 	}
 
+	// Determine what types of activities to include based on type parameter
+	activityTypeParam := query.Get("type")
+	includeClasses := true
+	includeCompetitiveMatches := true
+	includeFriendlyMatches := true
+
+	if activityTypeParam != "" {
+		switch strings.ToUpper(activityTypeParam) {
+		case "MATCH", "MATCH_COMPETITIVE", "MATCH_FRIENDLY":
+			// For general match types
+			if activityTypeParam == "MATCH" || activityTypeParam == "match" {
+				includeClasses = false
+			} else if strings.ToUpper(activityTypeParam) == "MATCH_COMPETITIVE" {
+				includeClasses = false
+				includeFriendlyMatches = false
+			} else if strings.ToUpper(activityTypeParam) == "MATCH_FRIENDLY" {
+				includeClasses = false
+				includeCompetitiveMatches = false
+			}
+		case "CLASS":
+			includeCompetitiveMatches = false
+			includeFriendlyMatches = false
+		default:
+			// If unrecognized type, include everything
+			includeClasses = true
+			includeCompetitiveMatches = true
+			includeFriendlyMatches = true
+		}
+	}
+
+	// For backward compatibility
+	includeMatches := includeCompetitiveMatches || includeFriendlyMatches
+
 	var minLevel float64
 	minLevelStr := query.Get("min_level")
 	filterByMinLevel := false
@@ -165,27 +205,103 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		FromStartDate:    fromStartDate,
 	}
 
-	classes, err := h.playtomicClient.GetClasses(ctx, params)
-	if err != nil {
-		logger.Error("Error fetching classes", err)
-		respondWithError(w, fmt.Sprintf("Error fetching data: %s", err.Error()), http.StatusInternalServerError)
-		return
+	var allActivities []model.Activity
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	errCh := make(chan error, 2)
+
+	if includeClasses {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			classes, err := h.playtomicClient.GetClasses(ctx, params)
+			if err != nil {
+				logger.Error("Error fetching classes", err)
+				errCh <- fmt.Errorf("Error fetching class data: %w", err)
+				return
+			}
+
+			classActivities, err := transformer.ClassesToActivities(classes)
+			if err != nil {
+				logger.Error("Error transforming classes", err)
+				errCh <- fmt.Errorf("Error transforming class data: %w", err)
+				return
+			}
+
+			mu.Lock()
+			allActivities = append(allActivities, classActivities...)
+			mu.Unlock()
+		}()
 	}
 
-	activities, err := transformer.ClassesToActivities(classes)
-	if err != nil {
-		logger.Error("Error transforming classes", err)
-		respondWithError(w, fmt.Sprintf("Error transforming data: %s", err.Error()), http.StatusInternalServerError)
-		return
+	if includeMatches {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			matchParams := &playtomic.SearchMatchesParams{
+				Sort:          "start_date,created_at,DESC",
+				HasPlayers:    true,
+				SportID:       "PADEL",
+				TenantIDs:     clubIDs,
+				Visibility:    "VISIBLE",
+				FromStartDate: fromStartDate,
+				Size:          pageSize,
+				Page:          0,
+			}
+
+			matches, err := h.playtomicClient.GetMatches(ctx, matchParams)
+			if err != nil {
+				logger.Error("Error fetching matches", err)
+				errCh <- fmt.Errorf("Error fetching match data: %w", err)
+				return
+			}
+
+			matchActivities, err := transformer.MatchesToActivities(matches)
+			if err != nil {
+				logger.Error("Error transforming matches", err)
+				errCh <- fmt.Errorf("Error transforming match data: %w", err)
+				return
+			}
+
+			mu.Lock()
+			allActivities = append(allActivities, matchActivities...)
+			mu.Unlock()
+		}()
 	}
+
+	wg.Wait()
+
+	select {
+	case err := <-errCh:
+		respondWithError(w, err.Error(), http.StatusInternalServerError)
+		return
+	default:
+	}
+
+	sortActivitiesByDate(allActivities)
 
 	filteredActivities := make([]model.Activity, 0)
 
-	for _, activity := range activities {
+	for _, activity := range allActivities {
+		// Filter based on match type
+		if strings.HasPrefix(activity.Type, "MATCH_") {
+			if activity.Type == "MATCH_COMPETITIVE" && !includeCompetitiveMatches {
+				continue
+			}
+			if activity.Type == "MATCH_FRIENDLY" && !includeFriendlyMatches {
+				continue
+			}
+		}
+
+		// Filter based on availability
 		if !includeUnavailable && activity.AvailablePlaces <= 0 {
 			continue
 		}
 
+		// Filter based on level
 		if filterByMinLevel {
 			if activity.MinLevel < minLevel {
 				continue
@@ -219,7 +335,6 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	activityResp := ActivitySearchResponse{
 		Count:      len(filteredActivities),
 		Activities: filteredActivities,
-		Duration:   time.Since(start).String(),
 	}
 
 	resp := Response{
