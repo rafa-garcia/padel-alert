@@ -169,6 +169,24 @@ func respondWithError(w http.ResponseWriter, message string, status int) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+// respondWithJSON sends a JSON response
+func respondWithJSON(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(Response{
+		Status: http.StatusOK,
+		Data:   data,
+	})
+}
+
+// respondWithSuccess sends a success message response
+func respondWithSuccess(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(Response{
+		Status:  http.StatusOK,
+		Message: message,
+	})
+}
+
 // newRequestID generates a unique request ID
 func newRequestID() string {
 	// TODO: use a more robust solution like UUID

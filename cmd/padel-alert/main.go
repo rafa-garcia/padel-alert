@@ -12,6 +12,8 @@ import (
 	"github.com/rafa-garcia/padel-alert/internal/api"
 	"github.com/rafa-garcia/padel-alert/internal/config"
 	"github.com/rafa-garcia/padel-alert/internal/logger"
+	"github.com/rafa-garcia/padel-alert/internal/scheduler"
+	"github.com/rafa-garcia/padel-alert/internal/storage"
 )
 
 const version = "0.3.0"
@@ -28,8 +30,26 @@ func main() {
 	logger.Init(cfg.LogLevel)
 	logger.Info("Starting PadelAlert service", "version", version)
 
+	// Initialize Redis client
+	redisClient, err := storage.NewRedisClient(cfg)
+	if err != nil {
+		logger.Fatal("Failed to connect to Redis", err)
+	}
+	defer redisClient.Close()
+
+	// Create rule and user storage
+	ruleStorage := storage.NewRedisRuleStorage(redisClient)
+	userStorage := storage.NewRedisUserStorage(redisClient)
+
+	// Initialize scheduler
+	sched := scheduler.NewScheduler(cfg, ruleStorage)
+	if err := sched.Start(); err != nil {
+		logger.Fatal("Failed to start scheduler", err)
+	}
+	defer sched.Stop()
+
 	// Create router with API keys from config
-	r := api.NewRouter(version, cfg.APIKeys)
+	r := api.NewRouter(version, cfg.APIKeys, ruleStorage, userStorage)
 
 	// Create server with timeouts
 	server := &http.Server{
