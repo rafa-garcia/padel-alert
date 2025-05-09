@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/yourusername/padel-alert/internal/api"
-	"github.com/yourusername/padel-alert/internal/config"
-	"github.com/yourusername/padel-alert/internal/logger"
+	"github.com/rafa-garcia/padel-alert/internal/api"
+	"github.com/rafa-garcia/padel-alert/internal/config"
+	"github.com/rafa-garcia/padel-alert/internal/logger"
 )
 
 const version = "0.3.0"

@@ -5,24 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"sort"
-
-	"github.com/yourusername/padel-alert/internal/domain/model"
-	"github.com/yourusername/padel-alert/internal/logger"
-	"github.com/yourusername/padel-alert/internal/transformer"
-	"github.com/yourusername/padel-alert/pkg/playtomic"
+	"github.com/rafa-garcia/go-playtomic-api/client"
+	playtomicmodels "github.com/rafa-garcia/go-playtomic-api/models"
+	"github.com/rafa-garcia/padel-alert/internal/domain/model"
+	"github.com/rafa-garcia/padel-alert/internal/logger"
+	"github.com/rafa-garcia/padel-alert/internal/transformer"
 )
-
-func sortActivitiesByDate(activities []model.Activity) {
-	sort.Slice(activities, func(i, j int) bool {
-		return activities[i].StartDate.Before(activities[j].StartDate)
-	})
-}
 
 type ActivitySearchResponse struct {
 	Count      int              `json:"count"`
@@ -30,12 +24,15 @@ type ActivitySearchResponse struct {
 }
 
 type SearchHandler struct {
-	playtomicClient *playtomic.Client
+	playtomicClient *client.Client
 }
 
 func NewSearchHandler() *SearchHandler {
 	return &SearchHandler{
-		playtomicClient: playtomic.NewClient(),
+		playtomicClient: client.NewClient(
+			client.WithTimeout(30*time.Second),
+			client.WithRetries(3),
+		),
 	}
 }
 
@@ -132,6 +129,7 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	// Determine what types of activities to include based on type parameter
 	activityTypeParam := query.Get("type")
 	includeClasses := true
+	includeTournaments := true
 	includeCompetitiveMatches := true
 	includeFriendlyMatches := true
 
@@ -141,19 +139,28 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 			// For general match types
 			if activityTypeParam == "MATCH" || activityTypeParam == "match" {
 				includeClasses = false
+				includeTournaments = false
 			} else if strings.ToUpper(activityTypeParam) == "MATCH_COMPETITIVE" {
 				includeClasses = false
+				includeTournaments = false
 				includeFriendlyMatches = false
 			} else if strings.ToUpper(activityTypeParam) == "MATCH_FRIENDLY" {
 				includeClasses = false
+				includeTournaments = false
 				includeCompetitiveMatches = false
 			}
 		case "CLASS":
 			includeCompetitiveMatches = false
 			includeFriendlyMatches = false
+			includeTournaments = false
+		case "TOURNAMENT":
+			includeClasses = false
+			includeCompetitiveMatches = false
+			includeFriendlyMatches = false
 		default:
 			// If unrecognized type, include everything
 			includeClasses = true
+			includeTournaments = true
 			includeCompetitiveMatches = true
 			includeFriendlyMatches = true
 		}
@@ -193,18 +200,6 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	params := &playtomic.SearchClassesParams{
-		Sort:             "start_date,created_at,ASC",
-		Status:           status,
-		Type:             classType,
-		TenantIDs:        clubIDs,
-		IncludeSummary:   includeSummary,
-		Size:             pageSize,
-		Page:             0,
-		CourseVisibility: "PUBLIC",
-		FromStartDate:    fromStartDate,
-	}
-
 	var allActivities []model.Activity
 
 	var wg sync.WaitGroup
@@ -216,14 +211,26 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			defer wg.Done()
 
-			classes, err := h.playtomicClient.GetClasses(ctx, params)
+			classParams := &playtomicmodels.SearchClassesParams{
+				Sort:             "start_date,created_at,ASC",
+				Status:           status,
+				Type:             classType,
+				TenantIDs:        clubIDs,
+				IncludeSummary:   includeSummary,
+				Size:             pageSize,
+				Page:             0,
+				CourseVisibility: "PUBLIC",
+				FromStartDate:    fromStartDate,
+			}
+
+			classes, err := h.playtomicClient.GetClasses(ctx, classParams)
 			if err != nil {
 				logger.Error("Error fetching classes", err)
 				errCh <- fmt.Errorf("Error fetching class data: %w", err)
 				return
 			}
 
-			classActivities, err := transformer.ClassesToActivities(classes)
+			classActivities, err := transformer.ExternalClassesToActivities(classes)
 			if err != nil {
 				logger.Error("Error transforming classes", err)
 				errCh <- fmt.Errorf("Error transforming class data: %w", err)
@@ -241,7 +248,7 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			defer wg.Done()
 
-			matchParams := &playtomic.SearchMatchesParams{
+			matchParams := &playtomicmodels.SearchMatchesParams{
 				Sort:          "start_date,created_at,DESC",
 				HasPlayers:    true,
 				SportID:       "PADEL",
@@ -259,7 +266,7 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			matchActivities, err := transformer.MatchesToActivities(matches)
+			matchActivities, err := transformer.ExternalMatchesToActivities(matches)
 			if err != nil {
 				logger.Error("Error transforming matches", err)
 				errCh <- fmt.Errorf("Error transforming match data: %w", err)
@@ -270,6 +277,45 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 			allActivities = append(allActivities, matchActivities...)
 			mu.Unlock()
 		}()
+	}
+
+	if includeTournaments && len(clubIDs) > 0 {
+		// For lessons, we need to make a separate request for each club ID since
+		// the endpoint only accepts a single tenant_id
+		for _, clubID := range clubIDs {
+			wg.Add(1)
+			go func(tenantID string) {
+				defer wg.Done()
+
+				lessonParams := &playtomicmodels.SearchLessonsParams{
+					Sort:                 "start_date,created_at,ASC",
+					TenantID:             tenantID,
+					TournamentVisibility: "PUBLIC",
+					Status:               "REGISTRATION_OPEN,REGISTRATION_CLOSED,IN_PROGRESS",
+					Size:                 pageSize,
+					Page:                 0,
+					FromStartDate:        fromStartDate,
+				}
+
+				lessons, err := h.playtomicClient.GetLessons(ctx, lessonParams)
+				if err != nil {
+					logger.Error("Error fetching lessons", err, "tenantID", tenantID)
+					errCh <- fmt.Errorf("Error fetching lesson data for tenant %s: %w", tenantID, err)
+					return
+				}
+
+				lessonActivities, err := transformer.ExternalLessonsToActivities(lessons)
+				if err != nil {
+					logger.Error("Error transforming lessons", err, "tenantID", tenantID)
+					errCh <- fmt.Errorf("Error transforming lesson data for tenant %s: %w", tenantID, err)
+					return
+				}
+
+				mu.Lock()
+				allActivities = append(allActivities, lessonActivities...)
+				mu.Unlock()
+			}(clubID)
+		}
 	}
 
 	wg.Wait()
@@ -286,7 +332,7 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	filteredActivities := make([]model.Activity, 0)
 
 	for _, activity := range allActivities {
-		// Filter based on match type
+		// Filter based on activity type
 		if strings.HasPrefix(activity.Type, "MATCH_") {
 			if activity.Type == "MATCH_COMPETITIVE" && !includeCompetitiveMatches {
 				continue
@@ -294,6 +340,10 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 			if activity.Type == "MATCH_FRIENDLY" && !includeFriendlyMatches {
 				continue
 			}
+		} else if activity.Type == "TOURNAMENT" && !includeTournaments {
+			continue
+		} else if activity.Type == "ACADEMY_CLASS" && !includeClasses {
+			continue
 		}
 
 		// Filter based on availability
@@ -353,4 +403,10 @@ func parseClubIDs(clubIDsParam string) []string {
 		return []string{}
 	}
 	return strings.Split(clubIDsParam, ",")
+}
+
+func sortActivitiesByDate(activities []model.Activity) {
+	sort.Slice(activities, func(i, j int) bool {
+		return activities[i].StartDate.Before(activities[j].StartDate)
+	})
 }

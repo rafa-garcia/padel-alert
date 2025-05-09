@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/go-chi/cors"
-	"github.com/yourusername/padel-alert/internal/logger"
-	"github.com/yourusername/padel-alert/internal/metrics"
+	"github.com/rafa-garcia/padel-alert/internal/logger"
+	"github.com/rafa-garcia/padel-alert/internal/metrics"
 )
 
 // RequestID is the context key for the request ID
