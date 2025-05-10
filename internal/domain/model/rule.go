@@ -10,6 +10,7 @@ type Rule struct {
 	Name       string    `json:"name"`
 	ClubIDs    []string  `json:"club_ids"`
 	UserID     string    `json:"user_id"`
+	UserName   string    `json:"user_name"`
 	Email      string    `json:"email"`
 	TelegramID string    `json:"telegram_id,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
@@ -30,13 +31,14 @@ type Rule struct {
 	Active           bool      `json:"active"`
 }
 
-func NewRule(ruleType string, name string, clubIDs []string, userID string, email string) *Rule {
+func NewRule(ruleType string, name string, clubIDs []string, userID string, userName string, email string) *Rule {
 	now := time.Now()
 	return &Rule{
 		Type:      ruleType,
 		Name:      name,
 		ClubIDs:   clubIDs,
 		UserID:    userID,
+		UserName:  userName,
 		Email:     email,
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -44,8 +46,8 @@ func NewRule(ruleType string, name string, clubIDs []string, userID string, emai
 	}
 }
 
-func NewMatchRule(name string, clubIDs []string, userID string, email string, minRanking, maxRanking float64, startDate, endDate time.Time) *Rule {
-	rule := NewRule("match", name, clubIDs, userID, email)
+func NewMatchRule(name string, clubIDs []string, userID string, userName string, email string, minRanking, maxRanking float64, startDate, endDate time.Time) *Rule {
+	rule := NewRule("match", name, clubIDs, userID, userName, email)
 	rule.MinRanking = &minRanking
 	rule.MaxRanking = &maxRanking
 
@@ -56,8 +58,8 @@ func NewMatchRule(name string, clubIDs []string, userID string, email string, mi
 	return rule
 }
 
-func NewClassRule(name string, clubIDs []string, userID string, email string, titleContains string) *Rule {
-	rule := NewRule("class", name, clubIDs, userID, email)
+func NewClassRule(name string, clubIDs []string, userID string, userName string, email string, titleContains string) *Rule {
+	rule := NewRule("class", name, clubIDs, userID, userName, email)
 	titleCopy := titleContains
 	rule.TitleContains = &titleCopy
 	return rule

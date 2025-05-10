@@ -31,6 +31,7 @@ type CreateRuleRequest struct {
 	Name          string   `json:"name"`
 	ClubIDs       []string `json:"club_ids"`
 	UserID        string   `json:"user_id"`
+	UserName      string   `json:"user_name"`
 	Email         string   `json:"email"`
 	MinRanking    *float64 `json:"min_ranking,omitempty"`
 	MaxRanking    *float64 `json:"max_ranking,omitempty"`
@@ -42,6 +43,7 @@ type CreateRuleRequest struct {
 // UpdateRuleRequest represents a request to update an existing rule
 type UpdateRuleRequest struct {
 	Name          string     `json:"name"`
+	UserName      string     `json:"user_name"`
 	ClubIDs       []string   `json:"club_ids"`
 	MinRanking    *float64   `json:"min_ranking,omitempty"`
 	MaxRanking    *float64   `json:"max_ranking,omitempty"`
@@ -163,9 +165,15 @@ func (h *RuleHandler) CreateRule(w http.ResponseWriter, r *http.Request) {
 		endDate = &parsedTime
 	}
 
+	// Check for username
+	if req.UserName == "" {
+		req.UserName = effectiveUserID // Use user ID as fallback
+	}
+
 	rule := &model.Rule{
 		ID:            util.GenerateID(),
 		UserID:        effectiveUserID,
+		UserName:      req.UserName,
 		Email:         req.Email,
 		Type:          req.Type,
 		Name:          req.Name,
@@ -230,6 +238,9 @@ func (h *RuleHandler) UpdateRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rule.Name = req.Name
+	if req.UserName != "" {
+		rule.UserName = req.UserName
+	}
 	rule.ClubIDs = req.ClubIDs
 	rule.MinRanking = req.MinRanking
 	rule.MaxRanking = req.MaxRanking

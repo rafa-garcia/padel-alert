@@ -54,9 +54,12 @@ func TestEmailNotifier_FormatEmailHTML(t *testing.T) {
 	}
 
 	rule := &model.Rule{
-		ID:   "rule-1",
-		Name: "Test Rule",
-		Type: "match",
+		ID:       "rule-1",
+		Name:     "Test Rule",
+		Type:     "match",
+		UserID:   "user-1",
+		UserName: "Test User",
+		Email:    "user@example.com",
 	}
 
 	now := time.Now()
@@ -103,8 +106,11 @@ func TestEmailNotifier_NotifyNewActivities_NoActivities(t *testing.T) {
 	}
 
 	rule := &model.Rule{
-		ID:   "rule-1",
-		Name: "Test Rule",
+		ID:       "rule-1",
+		Name:     "Test Rule",
+		UserID:   "user-1",
+		UserName: "Test User",
+		Email:    "user@example.com",
 	}
 
 	err := notifier.NotifyNewActivities(context.Background(), user, rule, []model.Activity{})
@@ -121,8 +127,11 @@ func TestEmailNotifier_NotifyNewActivities_NoSMTPConfig(t *testing.T) {
 	}
 
 	rule := &model.Rule{
-		ID:   "rule-1",
-		Name: "Test Rule",
+		ID:       "rule-1",
+		Name:     "Test Rule",
+		UserID:   "user-1",
+		UserName: "Test User",
+		Email:    "user@example.com",
 	}
 
 	activities := []model.Activity{

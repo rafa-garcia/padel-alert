@@ -65,6 +65,7 @@ To create a notification rule, send a POST request to `/api/v1/rules`:
   "name": "My Match Rule",
   "club_ids": ["12345"],
   "user_id": "your-user-id",
+  "user_name": "Your Name",
   "email": "your.email@example.com",
   "min_ranking": 3.0,
   "max_ranking": 4.5,
@@ -81,12 +82,13 @@ For a class rule:
   "name": "My Class Rule",
   "club_ids": ["12345"],
   "user_id": "your-user-id",
+  "user_name": "Your Name",
   "email": "your.email@example.com",
   "title_contains": "beginner"
 }
 ```
 
-Note: The `user_id` and `email` fields are required to identify who should receive notifications.
+Note: The `user_id` and `email` fields are required to identify who should receive notifications. The `user_name` is used for personalized greetings.
 
 ## Configuration
 

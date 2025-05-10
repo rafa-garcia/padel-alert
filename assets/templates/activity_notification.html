@@ -1,30 +1,48 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <style>
-        body { font-family: Arial, sans-serif; }
-        .activity { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .header { font-weight: bold; }
-        .details { margin-left: 10px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body>
-    <h2>PadelAlert: New Padel Activities Available</h2>
-    <p>Your rule "{{.Rule.Name}}" found {{len .Activities}} new activities:</p>
-    
-    {{range .Activities}}
-    <div class="activity">
-        <div class="header">{{.Name}} at {{.Club.Name}}</div>
-        <div class="details">
-            <p>📅 Date: {{formatDate .StartDate}} {{formatTime .StartDate}} - {{formatTime .EndDate}}</p>
-            <p>🌟 Level: {{formatLevel .MinLevel}} - {{formatLevel .MaxLevel}}</p>
-            <p>👥 Available places: {{.AvailablePlaces}}</p>
-            <p>💰 Price: {{.Price}}</p>
-            <p><a href="{{.Link}}" target="_blank">Book on Playtomic</a></p>
-        </div>
-    </div>
-    {{end}}
-    
-    <p>Vamos!</p>
+<body style="margin:0; padding:0; background:#f4f4f4; font-family: Helvetica, Arial, sans-serif; color:#333;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding: 20px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; overflow: hidden;">
+          <tr>
+            <td align="center" style="padding: 20px 20px 10px 20px; border-bottom: 2px solid #e5463c;">
+              <img src="https://raw.githubusercontent.com/rafa-garcia/padel-alert/main/assets/images/logo.png" alt="PadelAlert" style="height: 50px; display:block; margin-bottom: 10px;">
+              <h1 style="margin: 0; font-size: 22px; color: #e5463c;">New Padel Activities Available</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 20px;">
+              {{if .User.Name}}
+              <p style="font-size: 18px; margin: 0 0 10px 0;"><strong>Vamos {{.User.Name}}!</strong> Your padel updates are here 🎾</p>
+              {{end}}
+              <p style="font-size: 16px; margin-top: 0;">Your search "<strong>{{.Rule.Name}}</strong>" found <strong>{{len .Activities}}</strong> new activities:</p>
+
+              {{range .Activities}}
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px; border: 1px solid #eee; border-left: 5px solid #e5463c; border-radius: 5px; background: #fafafa;">
+                <tr>
+                  <td style="padding: 15px;">
+                    <h3 style="margin: 0 0 10px 0; font-size: 18px; color: #222;">{{.Name}} @ {{.Club.Name}}</h3>
+                    <p style="margin: 4px 0; font-size: 14px;"><strong>📅 Date:</strong> {{formatDate .StartDate}} {{formatTime .StartDate}} - {{formatTime .EndDate}} ({{formatDuration .StartDate .EndDate}})</p>
+                    <p style="margin: 4px 0; font-size: 14px;"><strong>🌟 Level:</strong> {{formatLevel .MinLevel}} - {{formatLevel .MaxLevel}}</p>
+                    <p style="margin: 4px 0; font-size: 14px;"><strong>👥 Available Places:</strong> {{.AvailablePlaces}}</p>
+                    <p style="margin: 4px 0; font-size: 14px;"><strong>💰 Price:</strong> {{.Price}}</p>
+                    <a href="{{.Link}}" target="_blank" style="display:inline-block; margin-top:10px; padding:10px 16px; background:#e5463c; color:#ffffff; text-decoration:none; border-radius:4px; font-weight:bold; font-size:14px;">View & Book</a>
+                  </td>
+                </tr>
+              </table>
+              {{end}}
+
+              <p style="font-size: 14px; text-align: center; color: #999; margin-top: 40px;">Powered by PadelAlert</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>

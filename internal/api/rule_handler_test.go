@@ -98,14 +98,16 @@ func TestRuleHandler_ListRules(t *testing.T) {
 	userID := "test-user-123"
 	rules := []*model.Rule{
 		{
-			ID:     "rule-1",
-			UserID: userID,
-			Name:   "Rule 1",
+			ID:       "rule-1",
+			UserID:   userID,
+			UserName: "Test User",
+			Name:     "Rule 1",
 		},
 		{
-			ID:     "rule-2",
-			UserID: userID,
-			Name:   "Rule 2",
+			ID:       "rule-2",
+			UserID:   userID,
+			UserName: "Test User",
+			Name:     "Rule 2",
 		},
 	}
 
@@ -135,9 +137,10 @@ func TestRuleHandler_GetRule(t *testing.T) {
 	ruleID := "rule-1"
 
 	rule := &model.Rule{
-		ID:     ruleID,
-		UserID: userID,
-		Name:   "Test Rule",
+		ID:       ruleID,
+		UserID:   userID,
+		UserName: "Test User",
+		Name:     "Test Rule",
 	}
 
 	ruleStorage.On("GetRule", mock.Anything, ruleID).Return(rule, nil)
@@ -168,16 +171,19 @@ func TestRuleHandler_CreateRule(t *testing.T) {
 	userID := "test-user-123"
 
 	createReq := CreateRuleRequest{
-		Type:    "match",
-		Name:    "Test Rule",
-		ClubIDs: []string{"club-1"},
-		Email:   "test@example.com",
+		Type:     "match",
+		Name:     "Test Rule",
+		ClubIDs:  []string{"club-1"},
+		UserName: "Test User",
+		Email:    "test@example.com",
 	}
 
 	body, _ := json.Marshal(createReq)
 
 	ruleStorage.On("CreateRule", mock.Anything, mock.MatchedBy(func(rule *model.Rule) bool {
-		return rule.Name == createReq.Name && rule.UserID == userID
+		return rule.Name == createReq.Name &&
+			rule.UserID == userID &&
+			rule.UserName == createReq.UserName
 	})).Return(nil)
 
 	ruleStorage.On("ScheduleRule", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Time")).Return(nil)
@@ -203,9 +209,10 @@ func TestRuleHandler_DeleteRule(t *testing.T) {
 	ruleID := "rule-1"
 
 	rule := &model.Rule{
-		ID:     ruleID,
-		UserID: userID,
-		Name:   "Test Rule",
+		ID:       ruleID,
+		UserID:   userID,
+		UserName: "Test User",
+		Name:     "Test Rule",
 	}
 
 	ruleStorage.On("GetRule", mock.Anything, ruleID).Return(rule, nil)

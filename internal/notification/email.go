@@ -93,6 +93,23 @@ func (n *EmailNotifier) formatEmailHTML(rule *model.Rule, activities []model.Act
 			}
 			return fmt.Sprintf("%v", t)
 		},
+		"formatDuration": func(start, end interface{}) string {
+			startTime, startOk := start.(time.Time)
+			endTime, endOk := end.(time.Time)
+
+			if !startOk || !endOk {
+				return ""
+			}
+
+			duration := endTime.Sub(startTime)
+			hours := int(duration.Hours())
+			minutes := int(duration.Minutes()) % 60
+
+			if minutes == 0 {
+				return fmt.Sprintf("%dh", hours)
+			}
+			return fmt.Sprintf("%dh %dm", hours, minutes)
+		},
 		"formatLevel": func(level interface{}) string {
 			if floatVal, ok := level.(float64); ok {
 				if floatVal == 0 {
@@ -114,9 +131,19 @@ func (n *EmailNotifier) formatEmailHTML(rule *model.Rule, activities []model.Act
 	}
 
 	var buf bytes.Buffer
+	userData := &model.User{
+		ID:    rule.UserID,
+		Email: rule.Email,
+	}
+
+	if rule.UserName != "" {
+		userData.Name = rule.UserName
+	}
+
 	data := map[string]interface{}{
 		"Rule":       rule,
 		"Activities": activities,
+		"User":       userData,
 	}
 
 	err = tmpl.ExecuteTemplate(&buf, templateFile, data)
