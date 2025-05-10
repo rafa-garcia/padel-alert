@@ -1,0 +1,98 @@
+version: 2.1
+
+orbs:
+  go: circleci/go@1.7.3
+  docker: circleci/docker@2.2.0
+
+jobs:
+  build:
+    docker:
+      - image: cimg/go:1.24
+    steps:
+      - checkout
+      - go/load-cache
+      - go/mod-download
+      - go/save-cache
+      - run:
+          name: Build application
+          command: |
+            go build -o bin/padel-alert ./cmd/padel-alert
+      - persist_to_workspace:
+          root: .
+          paths:
+            - bin
+
+  test:
+    docker:
+      - image: cimg/go:1.24
+      - image: cimg/redis:7.0
+    steps:
+      - checkout
+      - go/load-cache
+      - go/mod-download
+      - run:
+          name: Run tests
+          command: |
+            go test -v -race -cover ./...
+      - run:
+          name: Run linter
+          command: |
+            go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+            golangci-lint run
+
+  build-docker:
+    docker:
+      - image: cimg/base:2023.03
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 20.10.14
+      - docker/check
+      - docker/build:
+          image: padel-alert
+          tag: latest,$CIRCLE_SHA1
+      - run:
+          name: Archive Docker image
+          command: |
+            docker save -o padel-alert-image.tar padel-alert:latest
+      - persist_to_workspace:
+          root: .
+          paths:
+            - padel-alert-image.tar
+
+  performance-test:
+    docker:
+      - image: cimg/go:1.24
+    steps:
+      - checkout
+      - go/load-cache
+      - go/mod-download
+      - run:
+          name: Run performance tests
+          command: |
+            # Run benchmarks on all packages
+            go test -v -run=^$ -bench=. -benchmem ./...
+            
+            # Run focused benchmark on scheduler package for profiling
+            go test -v -run=^$ -bench=. -benchmem github.com/rafa-garcia/padel-alert/internal/scheduler
+      - run:
+          name: Check memory usage
+          command: |
+            # Only profile the scheduler package which is the core of our application
+            go test -v -run=^$ -bench=. -benchmem -memprofile=mem.out github.com/rafa-garcia/padel-alert/internal/scheduler
+            go tool pprof -text mem.out
+
+workflows:
+  version: 2
+  build-test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+      - performance-test:
+          requires:
+            - test
+      - build-docker:
+          requires:
+            - test

@@ -1,4 +1,11 @@
+<p align="center">
+  <img src="assets/logo.png" alt="PadelAlert Logo" width="200"/>
+</p>
+
 # PadelAlert
+
+[![CircleCI](https://circleci.com/gh/rafa-garcia/padel-alert.svg?style=shield)](https://circleci.com/gh/rafa-garcia/padel-alert)
+[![Performance Testing](https://github.com/rafa-garcia/padel-alert/actions/workflows/performance.yml/badge.svg)](https://github.com/rafa-garcia/padel-alert/actions/workflows/performance.yml)
 
 A service to notify you when a Playtomic padel match or class is available for a particular club, ranking range, or other criteria.
 
