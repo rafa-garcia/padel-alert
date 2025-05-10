@@ -171,6 +171,7 @@ func TestRuleHandler_CreateRule(t *testing.T) {
 		Type:    "match",
 		Name:    "Test Rule",
 		ClubIDs: []string{"club-1"},
+		Email:   "test@example.com",
 	}
 
 	body, _ := json.Marshal(createReq)
@@ -188,7 +189,7 @@ func TestRuleHandler_CreateRule(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.CreateRule(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusCreated, w.Code)
 
 	ruleStorage.AssertExpectations(t)
 }

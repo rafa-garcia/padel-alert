@@ -226,14 +226,14 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 			classes, err := h.playtomicClient.GetClasses(ctx, classParams)
 			if err != nil {
 				logger.Error("Error fetching classes", err)
-				errCh <- fmt.Errorf("Error fetching class data: %w", err)
+				errCh <- fmt.Errorf("error fetching class data: %w", err)
 				return
 			}
 
 			classActivities, err := transformer.ExternalClassesToActivities(classes)
 			if err != nil {
 				logger.Error("Error transforming classes", err)
-				errCh <- fmt.Errorf("Error transforming class data: %w", err)
+				errCh <- fmt.Errorf("error transforming class data: %w", err)
 				return
 			}
 
@@ -262,14 +262,14 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 			matches, err := h.playtomicClient.GetMatches(ctx, matchParams)
 			if err != nil {
 				logger.Error("Error fetching matches", err)
-				errCh <- fmt.Errorf("Error fetching match data: %w", err)
+				errCh <- fmt.Errorf("error fetching match data: %w", err)
 				return
 			}
 
 			matchActivities, err := transformer.ExternalMatchesToActivities(matches)
 			if err != nil {
 				logger.Error("Error transforming matches", err)
-				errCh <- fmt.Errorf("Error transforming match data: %w", err)
+				errCh <- fmt.Errorf("error transforming match data: %w", err)
 				return
 			}
 
@@ -300,14 +300,14 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 				lessons, err := h.playtomicClient.GetLessons(ctx, lessonParams)
 				if err != nil {
 					logger.Error("Error fetching lessons", err, "tenantID", tenantID)
-					errCh <- fmt.Errorf("Error fetching lesson data for tenant %s: %w", tenantID, err)
+					errCh <- fmt.Errorf("error fetching lesson data for tenant %s: %w", tenantID, err)
 					return
 				}
 
 				lessonActivities, err := transformer.ExternalLessonsToActivities(lessons)
 				if err != nil {
 					logger.Error("Error transforming lessons", err, "tenantID", tenantID)
-					errCh <- fmt.Errorf("Error transforming lesson data for tenant %s: %w", tenantID, err)
+					errCh <- fmt.Errorf("error transforming lesson data for tenant %s: %w", tenantID, err)
 					return
 				}
 

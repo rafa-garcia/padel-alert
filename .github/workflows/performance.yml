@@ -1,0 +1,96 @@
+name: Performance Testing
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 0'  # Run weekly on Sundays at midnight
+
+jobs:
+  performance:
+    name: Performance Testing
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Build application
+        run: go build -o bin/padel-alert ./cmd/padel-alert
+
+      - name: Run performance benchmarks
+        run: |
+          go test -v -run=^$ -bench=. -benchmem ./...
+
+      - name: Run CPU profiling
+        run: |
+          go test -v -run=^$ -bench=. -benchmem -cpuprofile=cpu.prof ./...
+          go tool pprof -text cpu.prof > cpu_profile.txt
+
+      - name: Run memory profiling
+        run: |
+          go test -v -run=^$ -bench=. -benchmem -memprofile=mem.prof ./...
+          go tool pprof -text mem.prof > mem_profile.txt
+
+      - name: Upload profiles
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-profiles
+          path: |
+            cpu_profile.txt
+            mem_profile.txt
+
+      - name: Create performance report
+        run: |
+          echo "# Performance Report" > performance.md
+          echo "## CPU Profile" >> performance.md
+          echo '```' >> performance.md
+          cat cpu_profile.txt >> performance.md
+          echo '```' >> performance.md
+          echo "## Memory Profile" >> performance.md
+          echo '```' >> performance.md
+          cat mem_profile.txt >> performance.md
+          echo '```' >> performance.md
+
+      - name: Upload performance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-report
+          path: performance.md
+
+      - name: Comment PR with Performance Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('performance.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });

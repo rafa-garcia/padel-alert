@@ -59,6 +59,15 @@ func (m *MockRuleStorage) GetScheduledRules(ctx context.Context, until time.Time
 	return args.Get(0).([]string), args.Error(1)
 }
 
+type MockRuleProcessor struct {
+	mock.Mock
+}
+
+func (m *MockRuleProcessor) processRule(ctx context.Context, ruleID string) error {
+	args := m.Called(ctx, ruleID)
+	return args.Error(0)
+}
+
 func TestWorkerPool(t *testing.T) {
 	pool := NewWorkerPool(3)
 
@@ -81,13 +90,15 @@ func TestWorkerPool(t *testing.T) {
 	pool.Stop()
 }
 
-func TestScheduler_GetScheduledRules(t *testing.T) {
+func TestScheduler_ProcessSchedule(t *testing.T) {
 	mockStorage := new(MockRuleStorage)
+	mockProcessor := new(MockRuleProcessor)
 	cfg := &config.Config{CheckInterval: 300}
 
 	scheduler := &Scheduler{
 		config:     cfg,
 		ruleStore:  mockStorage,
+		processor:  mockProcessor,
 		workerPool: NewWorkerPool(1),
 		stopCh:     make(chan struct{}),
 	}
@@ -102,6 +113,9 @@ func TestScheduler_GetScheduledRules(t *testing.T) {
 		return t.After(now.Add(-time.Minute)) && t.Before(now.Add(time.Minute))
 	})).Return(ruleIDs, nil)
 
+	mockProcessor.On("processRule", mock.Anything, "rule-1").Return(nil)
+	mockProcessor.On("processRule", mock.Anything, "rule-2").Return(nil)
+
 	mockStorage.On("ScheduleRule", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil)
 
 	scheduler.processSchedule()
@@ -110,6 +124,7 @@ func TestScheduler_GetScheduledRules(t *testing.T) {
 
 	mockStorage.AssertCalled(t, "GetScheduledRules", mock.Anything, mock.Anything)
 	mockStorage.AssertNumberOfCalls(t, "ScheduleRule", len(ruleIDs))
+	mockProcessor.AssertNumberOfCalls(t, "processRule", len(ruleIDs))
 }
 
 func TestScheduler_Start_Stop(t *testing.T) {

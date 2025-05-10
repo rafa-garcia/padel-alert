@@ -4,20 +4,69 @@ import (
 	"time"
 )
 
-// Rule represents a notification rule for matches or classes
 type Rule struct {
-	ID            string     `json:"id"`
-	UserID        string     `json:"user_id"`   // Owner of the rule
-	Type          string     `json:"rule_type"` // "match", "class", or "lesson"
-	Name          string     `json:"name"`
-	ClubIDs       []string   `json:"club_ids"`
-	MinRanking    *float64   `json:"min_ranking,omitempty"`
-	MaxRanking    *float64   `json:"max_ranking,omitempty"`
-	StartDate     *time.Time `json:"start_date,omitempty"`
-	EndDate       *time.Time `json:"end_date,omitempty"`
-	TitleContains *string    `json:"title_contains,omitempty"`
-	LastRun       *time.Time `json:"last_run,omitempty"` // Last execution time
-	NextRun       *time.Time `json:"next_run,omitempty"` // Next scheduled run
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	ID         string    `json:"id"`
+	Type       string    `json:"rule_type"`
+	Name       string    `json:"name"`
+	ClubIDs    []string  `json:"club_ids"`
+	UserID     string    `json:"user_id"`
+	Email      string    `json:"email"`
+	TelegramID string    `json:"telegram_id,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+
+	MinRanking *float64   `json:"min_ranking,omitempty"`
+	MaxRanking *float64   `json:"max_ranking,omitempty"`
+	StartDate  *time.Time `json:"start_date,omitempty"`
+	EndDate    *time.Time `json:"end_date,omitempty"`
+	TimeOfDay  []string   `json:"time_of_day,omitempty"`
+	DaysOfWeek []string   `json:"days_of_week,omitempty"`
+
+	TitleContains *string  `json:"title_contains,omitempty"`
+	ClassTypes    []string `json:"class_types,omitempty"`
+
+	LastChecked      time.Time `json:"last_checked,omitempty"`
+	LastNotification time.Time `json:"last_notification,omitempty"`
+	Active           bool      `json:"active"`
+}
+
+func NewRule(ruleType string, name string, clubIDs []string, userID string, email string) *Rule {
+	now := time.Now()
+	return &Rule{
+		Type:      ruleType,
+		Name:      name,
+		ClubIDs:   clubIDs,
+		UserID:    userID,
+		Email:     email,
+		CreatedAt: now,
+		UpdatedAt: now,
+		Active:    true,
+	}
+}
+
+func NewMatchRule(name string, clubIDs []string, userID string, email string, minRanking, maxRanking float64, startDate, endDate time.Time) *Rule {
+	rule := NewRule("match", name, clubIDs, userID, email)
+	rule.MinRanking = &minRanking
+	rule.MaxRanking = &maxRanking
+
+	startDateCopy := startDate
+	endDateCopy := endDate
+	rule.StartDate = &startDateCopy
+	rule.EndDate = &endDateCopy
+	return rule
+}
+
+func NewClassRule(name string, clubIDs []string, userID string, email string, titleContains string) *Rule {
+	rule := NewRule("class", name, clubIDs, userID, email)
+	titleCopy := titleContains
+	rule.TitleContains = &titleCopy
+	return rule
+}
+
+func (r *Rule) IsMatch() bool {
+	return r.Type == "match"
+}
+
+func (r *Rule) IsClass() bool {
+	return r.Type == "class"
 }

@@ -46,6 +46,7 @@ func NewRouter(version string, apiKeys []string, ruleStorage storage.RuleStorage
 
 		// Rules API endpoints
 		r.Route("/api/v1/rules", func(r chi.Router) {
+			r.Use(UserIDMiddleware) // Extract user ID from query parameter
 			r.Get("/", ruleHandler.ListRules)
 			r.Post("/", ruleHandler.CreateRule)
 			r.Route("/{id}", func(r chi.Router) {

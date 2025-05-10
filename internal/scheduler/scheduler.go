@@ -15,6 +15,7 @@ import (
 type Scheduler struct {
 	config     *config.Config
 	ruleStore  storage.RuleStorage
+	processor  RuleProcessor
 	workerPool *WorkerPool
 	stopCh     chan struct{}
 	wg         sync.WaitGroup
@@ -24,9 +25,12 @@ type Scheduler struct {
 
 // NewScheduler creates a new scheduler
 func NewScheduler(cfg *config.Config, ruleStore storage.RuleStorage) *Scheduler {
+	processor := newRuleProcessor(cfg, ruleStore)
+
 	return &Scheduler{
 		config:     cfg,
 		ruleStore:  ruleStore,
+		processor:  processor,
 		workerPool: NewWorkerPool(10), // 10 workers
 		stopCh:     make(chan struct{}),
 	}
@@ -90,7 +94,6 @@ func (s *Scheduler) processSchedule() {
 	ctx := context.Background()
 	now := time.Now()
 
-	// Get rules scheduled until now
 	rules, err := s.ruleStore.GetScheduledRules(ctx, now)
 	if err != nil {
 		logger.Error("Failed to get scheduled rules", err)
@@ -98,15 +101,20 @@ func (s *Scheduler) processSchedule() {
 	}
 
 	for _, ruleID := range rules {
-		ruleID := ruleID // Create new variable for closure
+		ruleID := ruleID
 
-		// Submit to worker pool
 		s.workerPool.Submit(func() {
-			// Process rule here (will be implemented later)
-			// For now, just reschedule it
+			// Process the rule
+			err := s.processor.processRule(ctx, ruleID)
+			if err != nil {
+				logger.Error("Failed to process rule", err, "rule_id", ruleID)
+			}
+
 			next := time.Now().Add(time.Duration(s.config.CheckInterval) * time.Second)
 			if err := s.ruleStore.ScheduleRule(ctx, ruleID, next); err != nil {
-				logger.Error("Failed to reschedule rule", err, "ruleID", ruleID)
+				logger.Error("Failed to reschedule rule", err, "rule_id", ruleID)
+			} else {
+				logger.Debug("Rule scheduled for next check", "rule_id", ruleID, "next_check", next.Format(time.RFC3339))
 			}
 		})
 	}
@@ -158,7 +166,6 @@ func (p *WorkerPool) worker() {
 	for {
 		select {
 		case task := <-p.tasks:
-			// Execute the task, catch panics
 			func() {
 				defer func() {
 					if r := recover(); r != nil {

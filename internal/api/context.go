@@ -6,7 +6,6 @@ import "context"
 type contextKey string
 
 const (
-	// contextKeyUserID is the key for the user ID in the request context
 	contextKeyUserID contextKey = "user_id"
 )
 
@@ -15,8 +14,13 @@ func WithUserID(ctx context.Context, userID string) context.Context {
 	return context.WithValue(ctx, contextKeyUserID, userID)
 }
 
-// GetUserID gets a user ID from the context
+// GetUserID gets a user ID from the context, with safe type assertion
 func GetUserID(ctx context.Context) (string, bool) {
-	userID, ok := ctx.Value(contextKeyUserID).(string)
+	val := ctx.Value(contextKeyUserID)
+	if val == nil {
+		return "", false
+	}
+
+	userID, ok := val.(string)
 	return userID, ok
 }

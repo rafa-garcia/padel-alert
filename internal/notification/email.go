@@ -110,7 +110,7 @@ func (n *EmailNotifier) formatEmailHTML(rule *model.Rule, activities []model.Act
     </div>
     {{end}}
     
-    <p>Happy playing!</p>
+    <p>Vamos!</p>
 </body>
 </html>
 `
