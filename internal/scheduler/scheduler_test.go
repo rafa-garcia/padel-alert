@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ type testRuleProcessor struct {
 	processCalled bool
 	processError  error
 	processedIDs  []string
+	mu            sync.Mutex
 }
 
 func newTestRuleProcessor() *testRuleProcessor {
@@ -27,6 +29,8 @@ func newTestRuleProcessor() *testRuleProcessor {
 }
 
 func (p *testRuleProcessor) processRule(ctx context.Context, ruleID string) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.processCalled = true
 	p.processedIDs = append(p.processedIDs, ruleID)
 	return p.processError
@@ -96,9 +100,15 @@ func TestScheduler_ProcessSchedule(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	assert.Equal(t, 2, len(testProcessor.processedIDs), "Should have processed 2 rules")
-	assert.Contains(t, testProcessor.processedIDs, "rule-1", "Should have processed rule-1")
-	assert.Contains(t, testProcessor.processedIDs, "rule-2", "Should have processed rule-2")
+	testProcessor.mu.Lock()
+	processedCount := len(testProcessor.processedIDs)
+	processedIDs := make([]string, len(testProcessor.processedIDs))
+	copy(processedIDs, testProcessor.processedIDs)
+	testProcessor.mu.Unlock()
+
+	assert.Equal(t, 2, processedCount, "Should have processed 2 rules")
+	assert.Contains(t, processedIDs, "rule-1", "Should have processed rule-1")
+	assert.Contains(t, processedIDs, "rule-2", "Should have processed rule-2")
 
 	mockStorage.AssertExpectations(t)
 }

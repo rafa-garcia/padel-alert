@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// Rule represents a notification rule that users create to be alerted about new padel activities.
 type Rule struct {
 	ID         string    `json:"id"`
 	Type       string    `json:"rule_type"`
@@ -31,6 +32,7 @@ type Rule struct {
 	Active           bool      `json:"active"`
 }
 
+// NewRule creates a new base rule with common fields set.
 func NewRule(ruleType string, name string, clubIDs []string, userID string, userName string, email string) *Rule {
 	now := time.Now()
 	return &Rule{
@@ -46,6 +48,7 @@ func NewRule(ruleType string, name string, clubIDs []string, userID string, user
 	}
 }
 
+// NewMatchRule creates a rule specifically for match activities.
 func NewMatchRule(name string, clubIDs []string, userID string, userName string, email string, minRanking, maxRanking float64, startDate, endDate time.Time) *Rule {
 	rule := NewRule("match", name, clubIDs, userID, userName, email)
 	rule.MinRanking = &minRanking
@@ -58,6 +61,7 @@ func NewMatchRule(name string, clubIDs []string, userID string, userName string,
 	return rule
 }
 
+// NewClassRule creates a rule specifically for class or lesson activities.
 func NewClassRule(name string, clubIDs []string, userID string, userName string, email string, titleContains string) *Rule {
 	rule := NewRule("class", name, clubIDs, userID, userName, email)
 	titleCopy := titleContains
@@ -65,10 +69,12 @@ func NewClassRule(name string, clubIDs []string, userID string, userName string,
 	return rule
 }
 
+// IsMatch checks if the rule is for match activities.
 func (r *Rule) IsMatch() bool {
 	return r.Type == "match"
 }
 
+// IsClass checks if the rule is for class activities.
 func (r *Rule) IsClass() bool {
 	return r.Type == "class"
 }
