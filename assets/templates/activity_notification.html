@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .activity { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .header { font-weight: bold; }
+        .details { margin-left: 10px; }
+    </style>
+</head>
+<body>
+    <h2>PadelAlert: New Padel Activities Available</h2>
+    <p>Your rule "{{.Rule.Name}}" found {{len .Activities}} new activities:</p>
+    
+    {{range .Activities}}
+    <div class="activity">
+        <div class="header">{{.Name}} at {{.Club.Name}}</div>
+        <div class="details">
+            <p>📅 Date: {{formatDate .StartDate}} {{formatTime .StartDate}} - {{formatTime .EndDate}}</p>
+            <p>🌟 Level: {{formatLevel .MinLevel}} - {{formatLevel .MaxLevel}}</p>
+            <p>👥 Available places: {{.AvailablePlaces}}</p>
+            <p>💰 Price: {{.Price}}</p>
+            <p><a href="{{.Link}}" target="_blank">Book on Playtomic</a></p>
+        </div>
+    </div>
+    {{end}}
+    
+    <p>Vamos!</p>
+</body>
+</html>

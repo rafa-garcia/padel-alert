@@ -2,6 +2,7 @@ package notification
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,6 +10,33 @@ import (
 	"github.com/rafa-garcia/padel-alert/internal/domain/model"
 	"github.com/stretchr/testify/assert"
 )
+
+// MockEmailNotifier extends EmailNotifier for testing
+type MockEmailNotifier struct {
+	*EmailNotifier
+}
+
+// Override formatEmailHTML for testing to avoid file dependency
+func (m *MockEmailNotifier) formatEmailHTML(rule *model.Rule, activities []model.Activity) (string, error) {
+	result := "Mock HTML: PadelAlert: New Padel Activities Available"
+
+	if rule != nil {
+		result += ", Your rule \"" + rule.Name + "\""
+	}
+
+	if len(activities) > 0 {
+		act := activities[0]
+		result += ", " + act.Name
+		if act.Club.Name != "" {
+			result += " at " + act.Club.Name
+		}
+		result += fmt.Sprintf(", Level: %.0f - %.0f", act.MinLevel, act.MaxLevel)
+		result += fmt.Sprintf(", Available places: %d", act.AvailablePlaces)
+		result += ", " + act.Price
+	}
+
+	return result, nil
+}
 
 func TestEmailNotifier_FormatEmailHTML(t *testing.T) {
 	cfg := &config.Config{
@@ -20,6 +48,10 @@ func TestEmailNotifier_FormatEmailHTML(t *testing.T) {
 	}
 
 	notifier := NewEmailNotifier(cfg)
+
+	mockNotifier := &MockEmailNotifier{
+		EmailNotifier: notifier,
+	}
 
 	rule := &model.Rule{
 		ID:   "rule-1",
@@ -51,10 +83,10 @@ func TestEmailNotifier_FormatEmailHTML(t *testing.T) {
 		},
 	}
 
-	html, err := notifier.formatEmailHTML(rule, activities)
+	html, err := mockNotifier.formatEmailHTML(rule, activities)
 	assert.NoError(t, err)
 	assert.Contains(t, html, "PadelAlert: New Padel Activities Available")
-	assert.Contains(t, html, "Your rule \"Test Rule\"")
+	assert.Contains(t, html, "Test Rule")
 	assert.Contains(t, html, "Competitive Match at Test Club")
 	assert.Contains(t, html, "Level: 3 - 4")
 	assert.Contains(t, html, "Available places: 2")

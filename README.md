@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="PadelAlert Logo" width="200"/>
+  <img src="assets/images/logo.png" alt="PadelAlert Logo" width="200"/>
 </p>
 
 # PadelAlert

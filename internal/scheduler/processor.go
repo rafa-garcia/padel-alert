@@ -8,7 +8,10 @@ import (
 	"github.com/rafa-garcia/padel-alert/internal/domain/model"
 	"github.com/rafa-garcia/padel-alert/internal/logger"
 	"github.com/rafa-garcia/padel-alert/internal/notification"
+	"github.com/rafa-garcia/padel-alert/internal/processor"
 	"github.com/rafa-garcia/padel-alert/internal/storage"
+
+	playtomic "github.com/rafa-garcia/go-playtomic-api/client"
 )
 
 // EmailNotifier defines an interface for email notification
@@ -27,19 +30,37 @@ type PlaytomicClient interface {
 	SearchClasses(ctx context.Context, params interface{}) ([]model.Activity, error)
 }
 
+// MatchProcessor interface for processing match rules
+type MatchProcessor interface {
+	Process(ctx context.Context, rule *model.Rule) ([]model.Activity, error)
+}
+
 // ruleProcessor processes rules and sends notifications
 type ruleProcessor struct {
-	config        *config.Config
-	ruleStore     storage.RuleStorage
-	emailNotifier EmailNotifier
+	config         *config.Config
+	ruleStore      storage.RuleStorage
+	emailNotifier  EmailNotifier
+	matchProcessor MatchProcessor
 }
 
 // newRuleProcessor creates a new rule processor
 func newRuleProcessor(cfg *config.Config, ruleStore storage.RuleStorage) *ruleProcessor {
+	redisClient, err := storage.NewRedisClient(cfg)
+	if err != nil {
+		logger.Error("Failed to create Redis client", err)
+		redisClient = nil
+	}
+
+	playtomicClient := playtomic.NewClient(
+		playtomic.WithTimeout(60*time.Second),
+		playtomic.WithRetries(3),
+	)
+
 	return &ruleProcessor{
-		config:        cfg,
-		ruleStore:     ruleStore,
-		emailNotifier: notification.NewEmailNotifier(cfg),
+		config:         cfg,
+		ruleStore:      ruleStore,
+		emailNotifier:  notification.NewEmailNotifier(cfg),
+		matchProcessor: processor.NewMatchProcessor(playtomicClient, ruleStore, redisClient),
 	}
 }
 
@@ -65,7 +86,18 @@ func (p *ruleProcessor) processRule(ctx context.Context, ruleID string) error {
 
 	rule.LastChecked = time.Now()
 
-	activities := []model.Activity{}
+	var activities []model.Activity
+
+	if rule.Type == "match" {
+		matchActivities, err := p.matchProcessor.Process(ctx, rule)
+		if err != nil {
+			logger.Error("Failed to process match rule", err, "rule_id", ruleID)
+		} else {
+			activities = matchActivities
+		}
+	} else {
+		logger.Warn("Unsupported rule type", "rule_id", ruleID, "type", rule.Type)
+	}
 
 	if len(activities) > 0 {
 		user := &model.User{

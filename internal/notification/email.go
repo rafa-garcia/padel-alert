@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"html/template"
 	"net/smtp"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/rafa-garcia/padel-alert/internal/config"
 	"github.com/rafa-garcia/padel-alert/internal/domain/model"
@@ -30,20 +33,17 @@ func (n *EmailNotifier) NotifyNewActivities(ctx context.Context, user *model.Use
 		return nil
 	}
 
-	// If SMTP settings are not configured, log but don't return error
 	if n.config.SMTPServer == "" || n.config.SMTPUsername == "" || n.config.SMTPPassword == "" {
 		logger.Warn("SMTP not configured, skipping email notification", "user_id", user.ID)
 		return nil
 	}
 
-	// Format email content
 	subject := fmt.Sprintf("PadelAlert: %d new activities available", len(activities))
 	htmlBody, err := n.formatEmailHTML(rule, activities)
 	if err != nil {
 		return fmt.Errorf("format email: %w", err)
 	}
 
-	// Send email
 	err = n.sendEmail(user.Email, subject, htmlBody)
 	if err != nil {
 		return fmt.Errorf("send email: %w", err)
@@ -53,12 +53,10 @@ func (n *EmailNotifier) NotifyNewActivities(ctx context.Context, user *model.Use
 	return nil
 }
 
-// sendEmail sends an email
+// sendEmail sends an email via SMTP
 func (n *EmailNotifier) sendEmail(to, subject, htmlBody string) error {
-	// Set up authentication
 	auth := smtp.PlainAuth("", n.config.SMTPUsername, n.config.SMTPPassword, n.config.SMTPServer)
 
-	// Set up headers
 	headers := map[string]string{
 		"From":         n.config.SMTPSender,
 		"To":           to,
@@ -67,78 +65,61 @@ func (n *EmailNotifier) sendEmail(to, subject, htmlBody string) error {
 		"Content-Type": "text/html; charset=utf-8",
 	}
 
-	// Build message
 	message := ""
 	for k, v := range headers {
 		message += fmt.Sprintf("%s: %s\r\n", k, v)
 	}
 	message += "\r\n" + htmlBody
 
-	// Send email
 	addr := fmt.Sprintf("%s:%d", n.config.SMTPServer, n.config.SMTPPort)
 	return smtp.SendMail(addr, auth, n.config.SMTPSender, []string{to}, []byte(message))
 }
 
-// formatEmailHTML formats the email body as HTML
+// formatEmailHTML formats the email body as HTML using a template file
 func (n *EmailNotifier) formatEmailHTML(rule *model.Rule, activities []model.Activity) (string, error) {
-	// Simple HTML template
-	const emailTemplate = `
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; }
-        .activity { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .header { font-weight: bold; }
-        .details { margin-left: 10px; }
-    </style>
-</head>
-<body>
-    <h2>PadelAlert: New Padel Activities Available</h2>
-    <p>Your rule "{{.Rule.Name}}" found {{len .Activities}} new activities:</p>
-    
-    {{range .Activities}}
-    <div class="activity">
-        <div class="header">{{.Name}} at {{.Club.Name}}</div>
-        <div class="details">
-            <p>📅 Date: {{formatTime .StartDate}} - {{formatTime .EndDate}}</p>
-            <p>🌟 Level: {{.MinLevel}} - {{.MaxLevel}}</p>
-            <p>👥 Available places: {{.AvailablePlaces}}</p>
-            <p>💰 Price: {{.Price}}</p>
-            <p><a href="{{.Link}}">View on Playtomic</a></p>
-        </div>
-    </div>
-    {{end}}
-    
-    <p>Vamos!</p>
-</body>
-</html>
-`
-
-	// Create template with functions
-	tmpl, err := template.New("email").Funcs(template.FuncMap{
+	funcMap := template.FuncMap{
 		"len": func(items []model.Activity) int {
 			return len(items)
 		},
-		"formatTime": func(t interface{}) string {
-			if t, ok := t.(fmt.Stringer); ok {
-				return t.String()
+		"formatDate": func(t interface{}) string {
+			if timeVal, ok := t.(time.Time); ok {
+				return timeVal.Format("2006-01-02")
 			}
 			return fmt.Sprintf("%v", t)
 		},
-	}).Parse(emailTemplate)
-
-	if err != nil {
-		return "", fmt.Errorf("parse template: %w", err)
+		"formatTime": func(t interface{}) string {
+			if timeVal, ok := t.(time.Time); ok {
+				return timeVal.Format("15:04")
+			}
+			return fmt.Sprintf("%v", t)
+		},
+		"formatLevel": func(level interface{}) string {
+			if floatVal, ok := level.(float64); ok {
+				if floatVal == 0 {
+					return "Any"
+				}
+				return fmt.Sprintf("%.1f", floatVal)
+			}
+			return fmt.Sprintf("%v", level)
+		},
 	}
 
-	// Execute template
+	cwd, _ := os.Getwd()
+	templateFile := "activity_notification.html"
+	templatePath := filepath.Join(cwd, "assets", "templates", templateFile)
+
+	tmpl, err := template.New(templateFile).Funcs(funcMap).ParseFiles(templatePath)
+	if err != nil {
+		return "", fmt.Errorf("parse template file: %w", err)
+	}
+
 	var buf bytes.Buffer
-	err = tmpl.Execute(&buf, map[string]interface{}{
+	data := map[string]interface{}{
 		"Rule":       rule,
 		"Activities": activities,
-	})
+	}
 
+	err = tmpl.ExecuteTemplate(&buf, templateFile, data)
 	if err != nil {
 		return "", fmt.Errorf("execute template: %w", err)
 	}
