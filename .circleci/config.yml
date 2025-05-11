@@ -46,10 +46,12 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - docker/check
+      # Skip the login check since we're not pushing to a registry
       - docker/build:
           image: padel-alert
           tag: latest,$CIRCLE_SHA1
+          docker-context: .
+          path: .
       - run:
           name: Archive Docker image
           command: |
