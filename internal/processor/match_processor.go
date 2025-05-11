@@ -56,6 +56,11 @@ func (p *MatchProcessor) Process(ctx context.Context, rule *model.Rule) ([]model
 
 	// Process each match
 	for _, m := range matches {
+		// Skip cancelled matches
+		if m.Status == "CANCELED" {
+			continue
+		}
+
 		// Skip matches without available spots
 		if !hasAvailableSpots(m) {
 			continue
@@ -99,7 +104,7 @@ func hasAvailableSpots(m models.Match) bool {
 		maxPlayers += m.MaxPlayersPerTeam
 	}
 
-	return currentPlayers < maxPlayers
+	return HasAvailableSpots(currentPlayers, maxPlayers)
 }
 
 // matchesRankingFilter checks if the match matches the rule's ranking filter
@@ -123,15 +128,7 @@ func matchesDateFilter(m models.Match, rule *model.Rule) bool {
 		return false
 	}
 
-	if rule.StartDate != nil && matchTime.Before(*rule.StartDate) {
-		return false
-	}
-
-	if rule.EndDate != nil && matchTime.After(*rule.EndDate) {
-		return false
-	}
-
-	return true
+	return MatchesDateFilter(matchTime, rule)
 }
 
 // checkSeen checks if a match has been seen before for a rule
@@ -199,7 +196,7 @@ func convertMatchToActivity(m models.Match) model.Activity {
 		Gender:            m.Gender,
 		AvailablePlaces:   maxPlayers - currentPlayers,
 		RegisteredPlayers: players,
-		Link:              fmt.Sprintf("https://playtomic.io/match/%s", m.MatchID),
+		Link:              fmt.Sprintf("https://app.playtomic.io/matches/%s", m.MatchID),
 		Club: model.Club{
 			ID:   m.Tenant.TenantID,
 			Name: m.Tenant.TenantName,

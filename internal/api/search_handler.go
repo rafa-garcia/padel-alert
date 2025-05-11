@@ -266,7 +266,15 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			matchActivities, err := transformer.ExternalMatchesToActivities(matches)
+			// Filter out cancelled matches before transformation
+			activeMatches := make([]playtomicmodels.Match, 0, len(matches))
+			for _, match := range matches {
+				if match.Status != "CANCELED" {
+					activeMatches = append(activeMatches, match)
+				}
+			}
+
+			matchActivities, err := transformer.ExternalMatchesToActivities(activeMatches)
 			if err != nil {
 				logger.Error("Error transforming matches", err)
 				errCh <- fmt.Errorf("error transforming match data: %w", err)

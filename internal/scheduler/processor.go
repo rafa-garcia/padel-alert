@@ -30,17 +30,17 @@ type PlaytomicClient interface {
 	SearchClasses(ctx context.Context, params interface{}) ([]model.Activity, error)
 }
 
-// MatchProcessor interface for processing match rules
-type MatchProcessor interface {
+// RuleTypeProcessor interface for processing specific rule types
+type RuleTypeProcessor interface {
 	Process(ctx context.Context, rule *model.Rule) ([]model.Activity, error)
 }
 
 // ruleProcessor processes rules and sends notifications
 type ruleProcessor struct {
-	config         *config.Config
-	ruleStore      storage.RuleStorage
-	emailNotifier  EmailNotifier
-	matchProcessor MatchProcessor
+	config        *config.Config
+	ruleStore     storage.RuleStorage
+	emailNotifier EmailNotifier
+	processor     RuleTypeProcessor
 }
 
 // newRuleProcessor creates a new rule processor
@@ -57,10 +57,10 @@ func newRuleProcessor(cfg *config.Config, ruleStore storage.RuleStorage) *rulePr
 	)
 
 	return &ruleProcessor{
-		config:         cfg,
-		ruleStore:      ruleStore,
-		emailNotifier:  notification.NewEmailNotifier(cfg),
-		matchProcessor: processor.NewMatchProcessor(playtomicClient, ruleStore, redisClient),
+		config:        cfg,
+		ruleStore:     ruleStore,
+		emailNotifier: notification.NewEmailNotifier(cfg),
+		processor:     processor.NewProcessor(playtomicClient, ruleStore, redisClient),
 	}
 }
 
@@ -86,17 +86,9 @@ func (p *ruleProcessor) processRule(ctx context.Context, ruleID string) error {
 
 	rule.LastChecked = time.Now()
 
-	var activities []model.Activity
-
-	if rule.Type == "match" {
-		matchActivities, err := p.matchProcessor.Process(ctx, rule)
-		if err != nil {
-			logger.Error("Failed to process match rule", err, "rule_id", ruleID)
-		} else {
-			activities = matchActivities
-		}
-	} else {
-		logger.Warn("Unsupported rule type", "rule_id", ruleID, "type", rule.Type)
+	activities, err := p.processor.Process(ctx, rule)
+	if err != nil {
+		logger.Error("Failed to process rule", err, "rule_id", ruleID, "type", rule.Type)
 	}
 
 	if len(activities) > 0 {

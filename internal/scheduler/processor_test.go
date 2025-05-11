@@ -15,7 +15,7 @@ import (
 func TestRuleProcessor_ProcessRule_NoMatches(t *testing.T) {
 	mockRuleStorage := new(testutil.MockRuleStorage)
 	mockEmailNotifier := new(testutil.MockEmailNotifier)
-	mockMatchProcessor := new(testutil.MockMatchProcessor)
+	mockProcessor := new(testutil.MockProcessor)
 
 	now := time.Now()
 	rule := &model.Rule{
@@ -34,27 +34,27 @@ func TestRuleProcessor_ProcessRule_NoMatches(t *testing.T) {
 		return r.ID == "test-rule-id" && !r.LastChecked.IsZero()
 	})).Return(nil)
 
-	mockMatchProcessor.On("Process", mock.Anything, rule).Return([]model.Activity{}, nil)
+	mockProcessor.On("Process", mock.Anything, rule).Return([]model.Activity{}, nil)
 
 	processor := &ruleProcessor{
-		config:         &config.Config{},
-		ruleStore:      mockRuleStorage,
-		emailNotifier:  mockEmailNotifier,
-		matchProcessor: mockMatchProcessor,
+		config:        &config.Config{},
+		ruleStore:     mockRuleStorage,
+		emailNotifier: mockEmailNotifier,
+		processor:     mockProcessor,
 	}
 
 	err := processor.processRule(context.Background(), "test-rule-id")
 
 	assert.NoError(t, err)
 	mockRuleStorage.AssertExpectations(t)
-	mockMatchProcessor.AssertExpectations(t)
+	mockProcessor.AssertExpectations(t)
 	mockEmailNotifier.AssertNotCalled(t, "NotifyNewActivities")
 }
 
 func TestRuleProcessor_ProcessRule_WithMatches(t *testing.T) {
 	mockRuleStorage := new(testutil.MockRuleStorage)
 	mockEmailNotifier := new(testutil.MockEmailNotifier)
-	mockMatchProcessor := new(testutil.MockMatchProcessor)
+	mockProcessor := new(testutil.MockProcessor)
 
 	now := time.Now()
 	rule := &model.Rule{
@@ -84,31 +84,31 @@ func TestRuleProcessor_ProcessRule_WithMatches(t *testing.T) {
 		return r.ID == "test-rule-id" && !r.LastChecked.IsZero() && !r.LastNotification.IsZero()
 	})).Return(nil)
 
-	mockMatchProcessor.On("Process", mock.Anything, rule).Return(activities, nil)
+	mockProcessor.On("Process", mock.Anything, rule).Return(activities, nil)
 
 	mockEmailNotifier.On("NotifyNewActivities", mock.Anything, mock.MatchedBy(func(u *model.User) bool {
 		return u.ID == "test-user-id" && u.Email == "test@example.com"
 	}), rule, activities).Return(nil)
 
 	processor := &ruleProcessor{
-		config:         &config.Config{},
-		ruleStore:      mockRuleStorage,
-		emailNotifier:  mockEmailNotifier,
-		matchProcessor: mockMatchProcessor,
+		config:        &config.Config{},
+		ruleStore:     mockRuleStorage,
+		emailNotifier: mockEmailNotifier,
+		processor:     mockProcessor,
 	}
 
 	err := processor.processRule(context.Background(), "test-rule-id")
 
 	assert.NoError(t, err)
 	mockRuleStorage.AssertExpectations(t)
-	mockMatchProcessor.AssertExpectations(t)
+	mockProcessor.AssertExpectations(t)
 	mockEmailNotifier.AssertExpectations(t)
 }
 
 func TestRuleProcessor_InactiveRule(t *testing.T) {
 	mockRuleStorage := new(testutil.MockRuleStorage)
 	mockEmailNotifier := new(testutil.MockEmailNotifier)
-	mockMatchProcessor := new(testutil.MockMatchProcessor)
+	mockProcessor := new(testutil.MockProcessor)
 
 	rule := &model.Rule{
 		ID:      "test-rule-id",
@@ -123,16 +123,16 @@ func TestRuleProcessor_InactiveRule(t *testing.T) {
 	mockRuleStorage.On("GetRule", mock.Anything, "test-rule-id").Return(rule, nil)
 
 	processor := &ruleProcessor{
-		config:         &config.Config{},
-		ruleStore:      mockRuleStorage,
-		emailNotifier:  mockEmailNotifier,
-		matchProcessor: mockMatchProcessor,
+		config:        &config.Config{},
+		ruleStore:     mockRuleStorage,
+		emailNotifier: mockEmailNotifier,
+		processor:     mockProcessor,
 	}
 
 	err := processor.processRule(context.Background(), "test-rule-id")
 
 	assert.NoError(t, err)
 	mockRuleStorage.AssertExpectations(t)
-	mockMatchProcessor.AssertNotCalled(t, "Process")
+	mockProcessor.AssertNotCalled(t, "Process")
 	mockEmailNotifier.AssertNotCalled(t, "NotifyNewActivities")
 }
