@@ -104,9 +104,10 @@ func parseLevel(levelStr string) (float64, float64) {
 	}
 
 	// Mock parsing
-	if levelStr == "3.0-4.5" {
+	switch levelStr {
+	case "3.0-4.5":
 		return 3.0, 4.5
-	} else if levelStr == "3.5" {
+	case "3.5":
 		return 3.5, 3.5
 	}
 

@@ -66,7 +66,9 @@ func TestSortActivitiesByDate(t *testing.T) {
 	assert.Equal(t, "activity-3", activities[2].ID)
 }
 
-type noopHandler struct{}
+type noopHandler struct {
+	t *testing.T
+}
 
 func (h *noopHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	activityResp := ActivitySearchResponse{
@@ -81,11 +83,15 @@ func (h *noopHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		h.t.Fatalf("Failed to encode JSON response: %v", err)
+	}
 }
 
 func TestSearchHandlerBasicResponse(t *testing.T) {
-	handler := &noopHandler{}
+	handler := &noopHandler{
+		t: t,
+	}
 
 	req := httptest.NewRequest("GET", "/api/v1/search", nil)
 	w := httptest.NewRecorder()
@@ -116,7 +122,9 @@ func TestSearchHandlerInvalidDate(t *testing.T) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		t.Fatalf("Failed to encode JSON response: %v", err)
+	}
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 

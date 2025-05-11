@@ -8,10 +8,18 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
-	os.Setenv("REDIS_URL", "redis://localhost:6379")
-	os.Setenv("API_KEYS", "test-key-1,test-key-2")
-	os.Setenv("CHECK_INTERVAL", "300")
-	os.Setenv("WORKER_COUNT", "5")
+	if err := os.Setenv("REDIS_URL", "redis://localhost:6379"); err != nil {
+		t.Fatalf("Failed to set env var: %v", err)
+	}
+	if err := os.Setenv("API_KEYS", "test-key-1,test-key-2"); err != nil {
+		t.Fatalf("Failed to set env var: %v", err)
+	}
+	if err := os.Setenv("CHECK_INTERVAL", "300"); err != nil {
+		t.Fatalf("Failed to set env var: %v", err)
+	}
+	if err := os.Setenv("WORKER_COUNT", "5"); err != nil {
+		t.Fatalf("Failed to set env var: %v", err)
+	}
 
 	config, err := Load()
 	assert.NoError(t, err)
@@ -23,10 +31,18 @@ func TestLoadConfig(t *testing.T) {
 }
 
 func TestDefaultValues(t *testing.T) {
-	os.Unsetenv("REDIS_URL")
-	os.Unsetenv("API_KEYS")
-	os.Unsetenv("CHECK_INTERVAL")
-	os.Unsetenv("WORKER_COUNT")
+	if err := os.Unsetenv("REDIS_URL"); err != nil {
+		t.Fatalf("Failed to unset env var: %v", err)
+	}
+	if err := os.Unsetenv("API_KEYS"); err != nil {
+		t.Fatalf("Failed to unset env var: %v", err)
+	}
+	if err := os.Unsetenv("CHECK_INTERVAL"); err != nil {
+		t.Fatalf("Failed to unset env var: %v", err)
+	}
+	if err := os.Unsetenv("WORKER_COUNT"); err != nil {
+		t.Fatalf("Failed to unset env var: %v", err)
+	}
 
 	config, err := Load()
 	assert.NoError(t, err)

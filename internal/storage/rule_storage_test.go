@@ -186,8 +186,10 @@ func TestRedisRuleStorage_DeleteRule(t *testing.T) {
 
 	seenKey := "seen:" + ruleID
 	scheduleKey := "rules:schedule"
-	mini.Set(seenKey, "some-data")
-	mini.ZAdd(scheduleKey, 1.0, ruleID)
+	err = mini.Set(seenKey, "some-data")
+	assert.NoError(t, err)
+	_, err = mini.ZAdd(scheduleKey, 1.0, ruleID)
+	assert.NoError(t, err)
 
 	err = ruleStorage.DeleteRule(ctx, ruleID)
 	assert.NoError(t, err)

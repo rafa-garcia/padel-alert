@@ -45,8 +45,7 @@ jobs:
       - image: cimg/base:2023.03
     steps:
       - checkout
-      - setup_remote_docker:
-          version: 20.10.14
+      - setup_remote_docker
       - docker/check
       - docker/build:
           image: padel-alert

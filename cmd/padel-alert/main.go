@@ -16,7 +16,7 @@ import (
 	"github.com/rafa-garcia/padel-alert/internal/storage"
 )
 
-const version = "0.3.0"
+const version = "0.4.0"
 
 func main() {
 	// Load config
@@ -35,7 +35,11 @@ func main() {
 	if err != nil {
 		logger.Fatal("Failed to connect to Redis", err)
 	}
-	defer redisClient.Close()
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			logger.Error("Failed to close Redis connection", err)
+		}
+	}()
 
 	// Create rule and user storage
 	ruleStorage := storage.NewRedisRuleStorage(redisClient)

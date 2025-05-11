@@ -136,11 +136,12 @@ func extractMatchLevel(min, max float64) string {
 }
 
 func matchFormatFloat(value float64) string {
-	if value == 3.0 {
+	switch value {
+	case 3.0:
 		return "3.0"
-	} else if value == 3.5 {
+	case 3.5:
 		return "3.5"
-	} else if value == 4.5 {
+	case 4.5:
 		return "4.5"
 	}
 	return "0.0"

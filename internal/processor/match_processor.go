@@ -81,7 +81,9 @@ func (p *MatchProcessor) Process(ctx context.Context, rule *model.Rule) ([]model
 		activities = append(activities, activity)
 
 		// Mark as seen
-		p.markSeen(ctx, rule.ID, m.MatchID)
+		if err := p.markSeen(ctx, rule.ID, m.MatchID); err != nil {
+			logger.Error("Failed to mark match as seen", err, "rule_id", rule.ID, "match_id", m.MatchID)
+		}
 	}
 
 	return activities, nil

@@ -395,7 +395,9 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		logger.Error("Failed to encode JSON response", err)
+	}
 }
 
 func parseClubIDs(clubIDsParam string) []string {

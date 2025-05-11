@@ -12,7 +12,7 @@ import (
 	"github.com/rafa-garcia/padel-alert/internal/metrics"
 )
 
-// RequestID is the context key for the request ID
+// ctxKey is a custom type for context keys to avoid collisions
 type ctxKey int
 
 const (
@@ -166,25 +166,31 @@ func respondWithError(w http.ResponseWriter, message string, status int) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		logger.Error("Failed to encode JSON response", err)
+	}
 }
 
 // respondWithJSON sends a JSON response
 func respondWithJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(Response{
+	if err := json.NewEncoder(w).Encode(Response{
 		Status: http.StatusOK,
 		Data:   data,
-	})
+	}); err != nil {
+		logger.Error("Failed to encode JSON response", err)
+	}
 }
 
 // respondWithSuccess sends a success message response
 func respondWithSuccess(w http.ResponseWriter, message string) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(Response{
+	if err := json.NewEncoder(w).Encode(Response{
 		Status:  http.StatusOK,
 		Message: message,
-	})
+	}); err != nil {
+		logger.Error("Failed to encode JSON response", err)
+	}
 }
 
 // newRequestID generates a unique request ID
