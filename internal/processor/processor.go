@@ -58,7 +58,7 @@ func (p *Processor) Process(ctx context.Context, rule *model.Rule) ([]model.Acti
 		return p.matchProcessor.Process(ctx, rule)
 	case "class":
 		return p.classProcessor.Process(ctx, rule)
-	case "tournament":
+	case "lesson":
 		return p.lessonProcessor.Process(ctx, rule)
 	}
 
@@ -74,8 +74,8 @@ func (p *Processor) Process(ctx context.Context, rule *model.Rule) ([]model.Acti
 	classRule := *rule
 	classRule.Type = "class"
 
-	tournamentRule := *rule
-	tournamentRule.Type = "tournament"
+	lessonRule := *rule
+	lessonRule.Type = "lesson"
 
 	// Process matches
 	wg.Add(1)
@@ -109,13 +109,13 @@ func (p *Processor) Process(ctx context.Context, rule *model.Rule) ([]model.Acti
 		mu.Unlock()
 	}()
 
-	// Process tournaments/lessons
+	// Process lessons
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		activities, err := p.lessonProcessor.Process(ctx, &tournamentRule)
+		activities, err := p.lessonProcessor.Process(ctx, &lessonRule)
 		if err != nil {
-			logger.Error("Failed to process tournaments", err, "rule_id", rule.ID)
+			logger.Error("Failed to process lessons", err, "rule_id", rule.ID)
 			errCh <- err
 			return
 		}

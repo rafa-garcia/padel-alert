@@ -50,7 +50,7 @@ func TestProcessor_Process_SpecificType(t *testing.T) {
 
 	matchRule := &model.Rule{Type: "match"}
 	classRule := &model.Rule{Type: "class"}
-	tournamentRule := &model.Rule{Type: "tournament"}
+	lessonRule := &model.Rule{Type: "lesson"}
 
 	expectedMatches := []model.Activity{{ID: "match-1", Type: "MATCH_FRIENDLY"}}
 	expectedClasses := []model.Activity{{ID: "class-1", Type: "ACADEMY_CLASS"}}
@@ -58,7 +58,7 @@ func TestProcessor_Process_SpecificType(t *testing.T) {
 
 	mockMatch.On("Process", mock.Anything, matchRule).Return(expectedMatches, nil)
 	mockClass.On("Process", mock.Anything, classRule).Return(expectedClasses, nil)
-	mockLesson.On("Process", mock.Anything, tournamentRule).Return(expectedLessons, nil)
+	mockLesson.On("Process", mock.Anything, lessonRule).Return(expectedLessons, nil)
 
 	activities, err := processor.Process(context.Background(), matchRule)
 	assert.NoError(t, err)
@@ -68,7 +68,7 @@ func TestProcessor_Process_SpecificType(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedClasses, activities)
 
-	activities, err = processor.Process(context.Background(), tournamentRule)
+	activities, err = processor.Process(context.Background(), lessonRule)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedLessons, activities)
 
@@ -104,7 +104,7 @@ func TestProcessor_Process_AllTypes(t *testing.T) {
 	})).Return([]model.Activity{classActivity}, nil)
 
 	mockLesson.On("Process", mock.Anything, mock.MatchedBy(func(r *model.Rule) bool {
-		return r.Type == "tournament"
+		return r.Type == "lesson"
 	})).Return([]model.Activity{lessonActivity}, nil)
 
 	activities, err := processor.Process(context.Background(), allRule)

@@ -61,9 +61,17 @@ func NewMatchRule(name string, clubIDs []string, userID string, userName string,
 	return rule
 }
 
-// NewClassRule creates a rule specifically for class or lesson activities.
+// NewClassRule creates a rule specifically for class activities.
 func NewClassRule(name string, clubIDs []string, userID string, userName string, email string, titleContains string) *Rule {
 	rule := NewRule("class", name, clubIDs, userID, userName, email)
+	titleCopy := titleContains
+	rule.TitleContains = &titleCopy
+	return rule
+}
+
+// NewLessonRule creates a rule specifically for lesson activities.
+func NewLessonRule(name string, clubIDs []string, userID string, userName string, email string, titleContains string) *Rule {
+	rule := NewRule("lesson", name, clubIDs, userID, userName, email)
 	titleCopy := titleContains
 	rule.TitleContains = &titleCopy
 	return rule
@@ -77,4 +85,9 @@ func (r *Rule) IsMatch() bool {
 // IsClass checks if the rule is for class activities.
 func (r *Rule) IsClass() bool {
 	return r.Type == "class"
+}
+
+// IsLesson checks if the rule is for lesson activities.
+func (r *Rule) IsLesson() bool {
+	return r.Type == "lesson"
 }

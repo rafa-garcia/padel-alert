@@ -32,8 +32,8 @@ func NewLessonProcessor(client *playtomic.Client, ruleStore storage.RuleStorage,
 
 // Process processes a lesson/tournament rule
 func (p *LessonProcessor) Process(ctx context.Context, rule *model.Rule) ([]model.Activity, error) {
-	if rule.Type != "tournament" {
-		return nil, fmt.Errorf("not a tournament rule")
+	if rule.Type != "lesson" {
+		return nil, fmt.Errorf("not a lesson rule")
 	}
 
 	var allActivities []model.Activity
