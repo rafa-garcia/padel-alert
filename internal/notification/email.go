@@ -81,15 +81,27 @@ func (n *EmailNotifier) formatEmailHTML(rule *model.Rule, activities []model.Act
 		"len": func(items []model.Activity) int {
 			return len(items)
 		},
-		"formatDate": func(t interface{}) string {
+		"formatDayOfWeek": func(t interface{}) string {
 			if timeVal, ok := t.(time.Time); ok {
-				return timeVal.Format("2006-01-02")
+				return timeVal.Format("Mon")
+			}
+			return fmt.Sprintf("%v", t)
+		},
+		"formatDay": func(t interface{}) string {
+			if timeVal, ok := t.(time.Time); ok {
+				return timeVal.Format("2")
+			}
+			return fmt.Sprintf("%v", t)
+		},
+		"formatMonth": func(t interface{}) string {
+			if timeVal, ok := t.(time.Time); ok {
+				return timeVal.Format("Jan")
 			}
 			return fmt.Sprintf("%v", t)
 		},
 		"formatTime": func(t interface{}) string {
 			if timeVal, ok := t.(time.Time); ok {
-				return timeVal.Format("15:04")
+				return timeVal.Format("3:04pm")
 			}
 			return fmt.Sprintf("%v", t)
 		},
